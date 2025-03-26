@@ -11,6 +11,8 @@ using Microsoft.WindowsAPICodePack.Dialogs;
 using Newtonsoft.Json.Linq;
 using System.Text;
 
+using ProgressBar = iluvadev.ConsoleProgressBar.ProgressBar;
+
 namespace SplitgateLegacyExport
 {
     internal class Program
@@ -33,7 +35,7 @@ namespace SplitgateLegacyExport
                 .CreateLogger();
 
             string GamePakPath = "E:\\Splitgate\\Builds\\Splitgate 1.9\\PortalWars\\Content\\Paks"; // valid game path
-            string ProjectPath = "E:\\Splitgate\\Projects\\SplitgateLegacy - Copy\\Content"; // valid content editor path
+            string ProjectPath = "E:\\Splitgate\\Projects\\SplitgateLegacy\\Content"; // valid content editor path
 
         FindPaks:
             if (GamePakPath == string.Empty)
@@ -123,60 +125,70 @@ namespace SplitgateLegacyExport
                 goto FindPaks;
             }
 
-            foreach (var GameFile in Provider.Files)
+            List<string> FinalList = new List<string>();
+            using (var pb = new ProgressBar { Maximum = Provider.Files.Values.Count() })
             {
-                if (GameFile.Value.Path.StartsWith("Engine")) continue;
-                if (!GameFile.Value.IsUePackage) continue;
-                if (IgnoredFiles.Contains(GameFile.Value.Extension)) continue;
-
-                IPackage? Package = await Provider.LoadPackageAsync(GameFile.Value);
-                if (Package == null) continue;
-
-                // gather non blueprint generated classes
-
-                // wrap all to shush errors
-                try
+                foreach (var GameFile in Provider.Files)
                 {
+                    if (GameFile.Value.Path.StartsWith("Engine")) continue;
+                    if (!GameFile.Value.IsUePackage) continue;
+                    if (IgnoredFiles.Contains(GameFile.Value.Extension)) continue;
 
-                    bool FoundCompiledClass = false;
-                    for (int i = 0; i != Package.GetExports().Count(); i++)
+                    IPackage? Package = await Provider.LoadPackageAsync(GameFile.Value);
+                    if (Package == null) continue;
+
+                    // gather non blueprint generated classes
+
+                    // wrap all to shush errors
+                    try
                     {
-                        UObject? GameObject = Package.GetExport(i);
-                        if (GameObject == null) continue;
 
-                        if (GameObject.ExportType.Contains("BlueprintGeneratedClass") && GameFile.Value.Extension != "umap")
+                        bool FoundCompiledClass = false;
+                        for (int i = 0; i != Package.GetExports().Count(); i++)
                         {
-                            FoundCompiledClass = true;
-                            break;
+                            UObject? GameObject = Package.GetExport(i);
+                            if (GameObject == null) continue;
+
+                            if (GameObject.ExportType.Contains("BlueprintGeneratedClass") && GameFile.Value.Extension != "umap")
+                            {
+                                FoundCompiledClass = true;
+                                break;
+                            }
+                        }
+                        if (FoundCompiledClass)
+                            continue;
+
+                        if (Provider.TrySavePackage(GameFile.Value.Path, out var SavedAssets))
+                        {
+                            Parallel.ForEach(SavedAssets, kvp =>
+                            {
+                                var NewProjectPath = Path.Combine(ProjectPath, kvp.Key.Replace("PortalWars/Content/", "")).Replace('\\', '/');
+                                string FixedPath = NewProjectPath.SubstringBeforeLast('/');
+
+                                if (kvp.Key.Contains("PortalWars/Plugins/")) return;
+
+                                if (!Directory.Exists(FixedPath))
+                                    Directory.CreateDirectory(FixedPath);
+
+                                if (File.Exists(NewProjectPath))
+                                    File.Delete(NewProjectPath);
+
+                                FinalList.Add($"\"{NewProjectPath}\"");
+                                File.WriteAllBytes(NewProjectPath, kvp.Value);
+                            });
                         }
                     }
-                    if (FoundCompiledClass)
-                        continue;
-
-                    if (Provider.TrySavePackage(GameFile.Value.Path, out var SavedAssets))
+                    catch (Exception Ex)
                     {
-                        Parallel.ForEach(SavedAssets, kvp =>
-                        {
-                            var NewProjectPath = System.IO.Path.Combine(ProjectPath, kvp.Key.Replace("PortalWars/Content/", "")).Replace('\\', '/');
-                            string FixedPath = NewProjectPath.SubstringBeforeLast('/');
-
-                            if (kvp.Key.Contains("PortalWars/Plugins/")) return;
-
-                            if (!Directory.Exists(FixedPath))
-                                Directory.CreateDirectory(FixedPath);
-
-                            if (File.Exists(NewProjectPath))
-                                File.Delete(NewProjectPath);
-
-                            File.WriteAllBytes(NewProjectPath, kvp.Value);
-                        });
+                        Log.Error("File '{File}' reported error: {Message}", 2, Ex.Message);
                     }
-                }
-                catch (Exception Ex)
-                {
-                    Log.Error("File '{File}' reported error: {Message}", 2, Ex.Message);
+
+                    pb.PerformStep();
                 }
             }
+
+            File.WriteAllLines(ProjectPath.SubstringBeforeLast('/') + "CreatedList.txt", FinalList);
+            Log.Information("Wrote all created content to CreatedList.txt in root of project.");
         }
     }
 }
