@@ -9,7 +9,12 @@
     <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
     <ProduceReferenceAssembly>True</ProduceReferenceAssembly>
     <GenerateDocumentationFile>False</GenerateDocumentationFile>
+    <ApplicationIcon>GameIcon.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="GameIcon.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft-WindowsAPICodePack-Shell" Version="1.1.5" />
