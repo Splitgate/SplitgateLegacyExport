@@ -34,8 +34,8 @@ namespace SplitgateLegacyExport
                 .WriteTo.Console()
                 .CreateLogger();
 
-            string GamePakPath = "E:\\Splitgate\\Builds\\Splitgate 1.9\\PortalWars\\Content\\Paks"; // valid game path
-            string ProjectPath = "E:\\Splitgate\\Projects\\SplitgateLegacy\\Content"; // valid content editor path
+            string GamePakPath = ""; // valid game path
+            string ProjectPath = ""; // valid content editor path
 
         FindPaks:
             if (GamePakPath == string.Empty)
