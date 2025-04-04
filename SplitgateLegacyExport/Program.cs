@@ -149,7 +149,9 @@ namespace SplitgateLegacyExport
                             UObject? GameObject = Package.GetExport(i);
                             if (GameObject == null) continue;
 
-                            if (GameObject.ExportType.Contains("BlueprintGeneratedClass") && GameFile.Value.Extension != "umap")
+                            if (GameObject.ExportType.Contains("BlueprintGeneratedClass") 
+                                && GameObject.ExportType.Contains("AnimMontage")
+                                && GameFile.Value.Extension != "umap")
                             {
                                 FoundCompiledClass = true;
                                 break;
