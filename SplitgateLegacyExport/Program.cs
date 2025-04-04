@@ -151,6 +151,7 @@ namespace SplitgateLegacyExport
 
                             if (GameObject.ExportType.Contains("BlueprintGeneratedClass") 
                                 && GameObject.ExportType.Contains("AnimMontage")
+                                && GameObject.ExportType.Contains("BlendSpace1D")
                                 && GameFile.Value.Extension != "umap")
                             {
                                 FoundCompiledClass = true;
